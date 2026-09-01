@@ -1,50 +1,102 @@
 <!-- templates/qr_code.html -->
-<!-- the selenium chrome extension really f's this page up. try not to use it -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Scan the QR Code</title>
+    <title>Connect Lovense</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css" rel="stylesheet">
+
     <script>
-        function checkAuth() {
-            fetch('/check-auth', {
-                credentials: 'include'  // Include cookies in the request
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.authenticated) {
-                        window.location.href = '/control';
-                    } else {
-                        setTimeout(checkAuth, 5000); // Check again in 5 seconds
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking auth:', error);
-                    setTimeout(checkAuth, 5000); // Check again in 5 seconds
+        async function checkAuth() {
+            try {
+                const response = await fetch('/check-auth', {
+                    credentials: 'include'
                 });
+
+                const data = await response.json();
+
+                if (data.authenticated) {
+                    window.location.href = '/control';
+                    return;
+                }
+            } catch (error) {
+                console.error('Authentication check failed:', error);
+            }
+
+            setTimeout(checkAuth, 5000);
         }
 
-        function skip_auth() {
-            fetch('/skip-auth', {
-                credentials: 'include'  // Include cookies in the request
-            })
+        async function enableTestMode() {
+            const button = document.getElementById('test-mode-button');
+            const status = document.getElementById('status');
+
+            button.disabled = true;
+            button.innerText = 'Enabling Test Mode...';
+            status.innerText = '';
+
+            try {
+                const response = await fetch('/skip-auth', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Unable to enable test mode.');
+                }
+
+                status.innerText =
+                    `Test mode enabled. Loaded ${data.nomi_count ?? 0} Nomi(s).`;
+
+                window.location.href = data.redirect || '/control';
+
+            } catch (error) {
+                console.error(error);
+                status.innerText = 'Test mode failed: ' + error.message;
+                button.disabled = false;
+                button.innerText = 'Use Test Mode';
+            }
         }
 
-        // Start checking after the page loads
-        window.onload = function() {
-            checkAuth();
-        };
+        window.onload = checkAuth;
     </script>
 </head>
+
 <body class="bg-gray-100 flex items-center justify-center h-screen">
-    <div class="w-full max-w-md text-center">
-        <h2 class="block text-gray-700 font-bold mb-4 text-xl">Scan the QR Code with Lovense Remote App</h2>
-        <img src="{{ qr_url }}" alt="QR Code" class="mx-auto mb-4">
-        <p class="text-gray-700">After scanning, please wait for the authentication to complete.</p>
+
+    <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 w-full max-w-md text-center">
+
+        <h2 class="text-xl font-bold mb-4">
+            Connect Lovense
+        </h2>
+
+        <p class="text-gray-700 mb-4">
+            Scan this QR code with the Lovense Remote app if you have a device connected.
+        </p>
+
+        <img src="{{ qr_url }}"
+             alt="Lovense QR Code"
+             class="mx-auto mb-6">
+
+        <div class="border-t pt-5">
+
+            <p class="text-gray-600 mb-3">
+                No Lovense device available?
+            </p>
+
+            <button
+                id="test-mode-button"
+                onclick="enableTestMode()"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Use Test Mode
+            </button>
+
+            <p id="status" class="text-sm text-gray-600 mt-3"></p>
+
+        </div>
+
     </div>
-    <div>
-        <button onclick="skip_auth()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Skip Lovense Authentication</button>
-    </div>
+
 </body>
 </html>

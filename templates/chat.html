@@ -6,56 +6,158 @@
     <title>Chat with Your Nomi</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        /* Add some basic styles for the chat interface */
         .chat-container {
             max-height: 500px;
             overflow-y: auto;
         }
+
         .message {
             margin-bottom: 10px;
         }
+
         .user-message {
             text-align: right;
         }
+
         .nomi-message {
             text-align: left;
         }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">            
+
+<body class="bg-gray-100 flex items-center justify-center h-screen">
     <div class="w-full max-w-md">
-        <h2 class="block text-gray-700 font-bold mb-4 text-xl text-center">Chat with Your Nomi</h2>
-        <form action="/send-chat-message" method="post">
+
+        <h2 class="block text-gray-700 font-bold mb-4 text-xl text-center">
+            Chat with Your Nomi
+        </h2>
+
+        <form action="/send-chat-message" method="post" id="chat-form">
+
             <input type="hidden" name="uid" value="{{ uid }}">
-            <input type="hidden" name="nomi_id" value="{{ nomi_id }}">
+            <input type="hidden" name="submission_id" value="{{ submission_id }}">
+
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2" for="nomi">
                     Select Nomi
                 </label>
-                <select name="nomi_id" id="nomi" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+
+                <select
+                    name="nomi_id"
+                    id="nomi"
+                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                >
                     {% for id, nomi in nomis.items() %}
-                    <option value="{{ id }}" {% if id == nomi_id %}selected{% endif %}>{{ nomi.name }} ({{ nomi.gender }})</option>
+                    <option value="{{ id }}" {% if id == nomi_id %}selected{% endif %}>
+                        {{ nomi.name }} ({{ nomi.gender }})
+                    </option>
                     {% endfor %}
                 </select>
             </div>
+
+            {% if messages %}
+            <div class="mb-4 text-center">
+                <button
+                    type="submit"
+                    formaction="/clear-chat"
+                    formmethod="post"
+                    formnovalidate
+                    class="text-sm text-red-600 hover:text-red-800 underline"
+                    onclick="return confirm('Clear this local chat history? This will not delete anything from Nomi.ai.');"
+                >
+                    Clear Local Chat
+                </button>
+            </div>
+            {% endif %}
+
             <div class="chat-container bg-white p-4 mb-4 rounded shadow-md">
                 {% for message in messages %}
                 <div class="message {% if message.sender == 'user' %}user-message{% else %}nomi-message{% endif %}">
-                    <strong>{{ message.sender|capitalize }}:</strong> {{ message.text }}
+                    <strong>{{ message.sender|capitalize }}:</strong>
+                    {{ message.text }}
                 </div>
+
                 {% endfor %}
             </div>
-            <div class="mb-4">
-                <input name="message_text" type="text" required placeholder="Type your message..."
-                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+
+            {% if device_commands %}
+            <div class="mb-4 rounded border p-3 {% if device_commands[0].test_mode %}bg-yellow-50 border-yellow-300{% else %}bg-green-50 border-green-300{% endif %}">
+
+                <div class="font-bold text-sm {% if device_commands[0].test_mode %}text-yellow-800{% else %}text-green-800{% endif %}">
+                    Device Command{% if device_commands|length > 1 %} Sequence{% endif %}
+                </div>
+
+                {% if device_commands[0].test_mode %}
+                <div class="text-xs font-bold text-yellow-800 mt-1 mb-2">
+                    TEST MODE — no commands sent to hardware
+                </div>
+                {% else %}
+                <div class="text-xs font-bold text-green-800 mt-1 mb-2">
+                    Sequence sent to device
+                </div>
+                {% endif %}
+
+                <div class="space-y-1">
+                    {% for cmd in device_commands %}
+                    <div class="text-sm">
+                        <span class="font-bold">{{ loop.index }}.</span>
+
+                        {% if not device_commands[0].test_mode %}
+                        <span class="font-bold">SENT —</span>
+                        {% endif %}
+
+                        {{ cmd.action }}
+
+                        {% if cmd.timeSec > 0 %}
+                        for {{ cmd.timeSec }} seconds
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
             </div>
+            {% endif %}
+
+            <div class="mb-4">
+                <input
+                    name="message_text"
+                    type="text"
+                    required
+                    autocomplete="off"
+                    placeholder="Type your message..."
+                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                >
+            </div>
+
             <div class="flex items-center justify-center">
-                <button type="submit"
-                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                <button
+                    id="send-button"
+                    type="submit"
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                >
                     Send
                 </button>
             </div>
         </form>
+
     </div>
+
+    <script>
+        const chatForm = document.getElementById("chat-form");
+        const sendButton = document.getElementById("send-button");
+
+        if (chatForm && sendButton) {
+            chatForm.addEventListener("submit", function (event) {
+                if (chatForm.dataset.submitting === "true") {
+                    event.preventDefault();
+                    return;
+                }
+
+                chatForm.dataset.submitting = "true";
+                sendButton.disabled = true;
+                sendButton.textContent = "Sending...";
+            });
+        }
+    </script>
 </body>
 </html>

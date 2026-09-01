@@ -14,12 +14,31 @@ class NomiClient:
             "Content-Type": "application/json",
         }
         self.introduction_message = (
-            "Hi Nomi pal! Just so you know, I have a special device that responds when you use words like "
-            "\"vibrate\", \"buzz\", \"pulse\", or \"shake\" followed by a number between 1 and 20. "
-            "You can also tell it to \"stop\" or use the patterns \"pulse\", \"wave\", \"fireworks\", "
-            "or \"earthquake\". Feel free to have fun with it!"
+            "Hi Nomi pal! Just so you know, I have a special connected device "
+            "that you can control during our conversation. "
+            "IMPORTANT: Only text inside explicit [DEVICE: ...] tags will control it. "
+            "Normal conversational words like vibrate, buzz, shake, stop, fireworks, "
+            "or earthquake will NOT activate anything unless they appear inside a DEVICE tag. "
+            "You may speak naturally and roleplay normally outside the tags. "
+            "When you intentionally want to control the device, you MUST output the exact "
+            "[DEVICE: ...] tag in your reply. Saying that you are activating a command in normal "
+            "prose does NOT control the device. Put each intended device action in an actual tag, "
+            "preferably on its own line. Use one or more tags like these: "
+            "[DEVICE: vibrate 7] "
+            "[DEVICE: vibrate 12, 8s] "
+            "[DEVICE: shake 15, 5s] "
+            "[DEVICE: pulse] "
+            "[DEVICE: wave] "
+            "[DEVICE: fireworks] "
+            "[DEVICE: earthquake, 10s] "
+            "[DEVICE: stop] "
+            "Vibration strength must be between 1 and 20. "
+            "Durations are optional and may be up to 60 seconds. "
+            "If the user requests a specific duration, you MUST preserve that duration inside the DEVICE tag. "
+            "You can issue multiple DEVICE tags in one reply if you intentionally want a sequence. "
+            "Do not put DEVICE tags in examples, explanations, or hypothetical discussion unless "
+            "you actually intend those commands to be executed."
         )
-
     async def list_nomis(self):
         url = f"{self.base_url}/nomis"
         async with aiohttp.ClientSession() as session:
@@ -45,3 +64,6 @@ class NomiClient:
             async with session.post(url, json=payload, headers=self.headers) as response:
                 data = await response.json()
                 return data
+
+
+
