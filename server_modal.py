@@ -59,7 +59,7 @@ def validate_device_sequence(commands):
         if not (action.startswith("Vibrate:") or action.startswith("Preset:")):
             return False, f"Unsupported device action: {action}", 0
 
-        if duration < 1 or duration > MAX_SEQUENCE_COMMAND_SECONDS:
+        if duration < 2 or duration > MAX_SEQUENCE_COMMAND_SECONDS:
             return False, f"Invalid duration for {action}: {duration}", 0
 
         total_seconds += duration
@@ -878,6 +878,7 @@ class FastAPIApp:
         
         # Assign the web_app to the instance variable
         self.web_app = web_app
+
 
 
 
