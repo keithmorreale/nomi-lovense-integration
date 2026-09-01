@@ -16,7 +16,7 @@ from typing import Dict, Any
 from pathlib import Path
 import modal
 from fastapi import FastAPI, Request, Form, logger
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import create_engine
@@ -24,7 +24,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists, create_database
 from models import Base, User
 from LovenseClient import LovenseClient
-from nomi_client import NomiClient
+from nomi_client import NomiAPIError, NomiClient
 from command_parser import parse_nomi_commands
 load_dotenv()
 
@@ -661,6 +661,7 @@ class FastAPIApp:
                 'uid': uid,
                 'nomi_id': nomi_id,
                 'nomi_name': nomis[nomi_id]['name'],
+                'nomi_avatar_url': f"/nomi-avatar/{nomi_id}",
                 'nomis': nomis,
                 'messages': messages,
                 'device_command': flashed_device_command,
@@ -668,6 +669,40 @@ class FastAPIApp:
                 'submission_id': submission_id,
             }
             return templates.TemplateResponse(request=request, name="chat.html", context=context)
+
+        @web_app.get("/nomi-avatar/{nomi_id}")
+        async def nomi_avatar(request: Request, nomi_id: str):
+            user_data = request.session.get("user_data")
+            if not user_data:
+                return Response(status_code=401)
+
+            nomis = user_data.get("nomis", {})
+            if nomi_id not in nomis:
+                return Response(status_code=404)
+
+            nomi_api_key = user_data.get("nomi_api_key")
+            if not nomi_api_key:
+                return Response(status_code=401)
+
+            nomi_client = NomiClient(nomi_api_key)
+
+            try:
+                avatar_data, content_type = await nomi_client.get_avatar(nomi_id)
+            except NomiAPIError as exc:
+                logger.warning(
+                    f"Nomi avatar request failed for nomi_id={nomi_id}: {exc}"
+                )
+                status_code = 404 if exc.status_code == 404 else 502
+                return Response(status_code=status_code)
+
+            return Response(
+                content=avatar_data,
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "private, max-age=300",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
 
         @web_app.post("/clear-chat")
         async def clear_chat(request: Request):
@@ -931,7 +966,6 @@ class FastAPIApp:
         
         # Assign the web_app to the instance variable
         self.web_app = web_app
-
 
 
 

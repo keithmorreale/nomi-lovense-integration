@@ -5,6 +5,15 @@ import aiohttp
 import asyncio
 import json
 
+
+class NomiAPIError(RuntimeError):
+    """An error response or invalid payload returned by the Nomi API."""
+
+    def __init__(self, status_code, message):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 class NomiClient:
     def __init__(self, api_key):
         self.api_key = api_key
@@ -57,6 +66,39 @@ class NomiClient:
                 data = await response.json()
                 return data
 
+    async def get_avatar(self, nomi_id):
+        """Fetch a Nomi avatar without exposing the API key to the browser."""
+        url = f"{self.base_url}/nomis/{nomi_id}/avatar"
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=self.headers) as response:
+                    if response.status != 200:
+                        raise NomiAPIError(
+                            response.status,
+                            f"Nomi avatar request failed with status {response.status}.",
+                        )
+
+                    content_type = response.headers.get(
+                        "Content-Type",
+                        ""
+                    ).split(";", 1)[0].strip().lower()
+
+                    if content_type != "image/webp":
+                        raise NomiAPIError(
+                            502,
+                            "Nomi returned an unexpected avatar content type.",
+                        )
+
+                    return await response.read(), content_type
+        except NomiAPIError:
+            raise
+        except aiohttp.ClientError as exc:
+            raise NomiAPIError(
+                502,
+                "Unable to contact the Nomi avatar service.",
+            ) from exc
+
     async def send_message(self, nomi_id, message_text):
         url = f"{self.base_url}/nomis/{nomi_id}/chat"
         payload = {"messageText": message_text}
@@ -64,6 +106,5 @@ class NomiClient:
             async with session.post(url, json=payload, headers=self.headers) as response:
                 data = await response.json()
                 return data
-
 
 

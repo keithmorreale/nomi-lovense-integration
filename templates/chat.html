@@ -15,6 +15,26 @@
             margin-bottom: 10px;
         }
 
+        .message-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 9999px;
+            object-fit: cover;
+            flex: 0 0 auto;
+        }
+
+        .message-content {
+            min-width: 0;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
         .user-message {
             text-align: right;
         }
@@ -28,9 +48,17 @@
 <body class="bg-gray-100 flex items-center justify-center h-screen">
     <div class="w-full max-w-md">
 
-        <h2 class="block text-gray-700 font-bold mb-4 text-xl text-center">
-            Chat with Your Nomi
-        </h2>
+        <div class="flex items-center justify-center gap-3 mb-4">
+            <img
+                src="{{ nomi_avatar_url }}"
+                alt="{{ nomi_name }} avatar"
+                class="w-16 h-16 rounded-full object-cover shadow-md bg-gray-200"
+            >
+            <div>
+                <div class="text-xs uppercase tracking-wide text-gray-500">Chat with your Nomi</div>
+                <h2 class="text-gray-700 font-bold text-xl">{{ nomi_name }}</h2>
+            </div>
+        </div>
 
         <form action="/send-chat-message" method="post" id="chat-form">
 
@@ -73,8 +101,23 @@
             <div class="chat-container bg-white p-4 mb-4 rounded shadow-md">
                 {% for message in messages %}
                 <div class="message {% if message.sender == 'user' %}user-message{% else %}nomi-message{% endif %}">
-                    <strong>{{ message.sender|capitalize }}:</strong>
-                    {{ message.text }}
+                    {% if message.sender == 'user' %}
+                    <div class="message-content">
+                        <strong>You:</strong> {{ message.text }}
+                    </div>
+                    {% else %}
+                    <div class="message-row">
+                        <img
+                            src="{{ nomi_avatar_url }}"
+                            alt=""
+                            class="message-avatar bg-gray-200"
+                            loading="lazy"
+                        >
+                        <div class="message-content">
+                            <strong>{{ nomi_name }}:</strong> {{ message.text }}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
 
                 {% endfor %}
@@ -145,6 +188,15 @@
     <script>
         const chatForm = document.getElementById("chat-form");
         const sendButton = document.getElementById("send-button");
+        const nomiSelect = document.getElementById("nomi");
+
+        if (nomiSelect) {
+            nomiSelect.addEventListener("change", function () {
+                window.location.assign(
+                    "/chat?nomi_id=" + encodeURIComponent(nomiSelect.value)
+                );
+            });
+        }
 
         if (chatForm && sendButton) {
             chatForm.addEventListener("submit", function (event) {
