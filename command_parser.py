@@ -7,27 +7,23 @@ import re
 
 DEFAULT_STRENGTH = 10
 DEFAULT_DURATION = 20
-MIN_STRENGTH = 1
-MAX_STRENGTH = 20
-MAX_DURATION = 60
-
-PRESET_WORDS = ("pulse", "wave", "fireworks", "earthquake")
 
 
 def _normalize_strength(value):
     """
-    Return a valid Lovense intensity from 1-20.
-    Invalid values fall back to DEFAULT_STRENGTH.
+    Normalize a Lovense intensity without enforcing safety limits.
+
+    An omitted or non-numeric intensity uses DEFAULT_STRENGTH.
+    Explicit numeric intensities are preserved so the sequence validator
+    can enforce the authoritative 1-20 safety limits.
     """
-    try:
-        strength = int(value)
-    except (TypeError, ValueError):
+    if value is None:
         return DEFAULT_STRENGTH
 
-    if MIN_STRENGTH <= strength <= MAX_STRENGTH:
-        return strength
-
-    return DEFAULT_STRENGTH
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_STRENGTH
 
 
 def _normalize_duration(value):

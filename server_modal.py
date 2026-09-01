@@ -25,13 +25,16 @@ from sqlalchemy_utils import database_exists, create_database
 from models import Base, User
 from LovenseClient import LovenseClient
 from nomi_client import NomiClient
-from command_parser import parse_nomi_response, parse_nomi_commands
+from command_parser import parse_nomi_commands
 load_dotenv()
 
 # Device sequence safety limits
 MAX_SEQUENCE_COMMANDS = 5
 MAX_SEQUENCE_COMMAND_SECONDS = 60
 MAX_SEQUENCE_TOTAL_SECONDS = 120
+MIN_DEVICE_STRENGTH = 1
+MAX_DEVICE_STRENGTH = 20
+ALLOWED_DEVICE_PRESETS = {"pulse", "wave", "fireworks", "earthquake"}
 
 
 def validate_device_sequence(commands):
@@ -56,7 +59,19 @@ def validate_device_sequence(commands):
         if action == "Stop":
             continue
 
-        if not (action.startswith("Vibrate:") or action.startswith("Preset:")):
+        if action.startswith("Vibrate:"):
+            try:
+                strength = int(action.split(":", 1)[1])
+            except (IndexError, TypeError, ValueError):
+                return False, f"Invalid vibration action: {action}", 0
+
+            if not (MIN_DEVICE_STRENGTH <= strength <= MAX_DEVICE_STRENGTH):
+                return False, f"Invalid vibration strength: {strength}", 0
+        elif action.startswith("Preset:"):
+            preset_name = action.split(":", 1)[1].lower()
+            if preset_name not in ALLOWED_DEVICE_PRESETS:
+                return False, f"Unsupported device preset: {preset_name}", 0
+        else:
             return False, f"Unsupported device action: {action}", 0
 
         if duration < 2 or duration > MAX_SEQUENCE_COMMAND_SECONDS:
@@ -760,21 +775,6 @@ class FastAPIApp:
                 logger.info(f"Parsed Nomi command: {command}")
                 logger.info(f"Parsed Nomi command sequence: {commands}")
 
-                device_commands = [
-                    {
-                        'action': item['action'],
-                        'timeSec': item['timeSec'],
-                        'test_mode': test_mode,
-                    }
-                    for item in commands
-                ]
-
-                device_command = {
-                    'action': command['action'],
-                    'timeSec': command['timeSec'],
-                    'test_mode': test_mode,
-                }
-
                 if test_mode:
                     try:
                         sequence_result = await execute_device_sequence(
@@ -793,6 +793,11 @@ class FastAPIApp:
                     except ValueError as e:
                         logger.warning(
                             f"Rejected device command sequence: {e}"
+                        )
+
+                        return HTMLResponse(
+                            content=f"Device command sequence rejected: {str(e)}",
+                            status_code=400
                         )
                 else:
                     real_toys = {
@@ -859,6 +864,20 @@ class FastAPIApp:
                             content=f"Error sending command sequence to device: {str(e)}",
                             status_code=500
                         )
+
+                # Report only commands that were actually executed or simulated.
+                # execute_device_sequence stops immediately after a Stop command,
+                # so later parsed commands must not be shown as sent.
+                device_commands = [
+                    {
+                        'action': item['action'],
+                        'timeSec': item['timeSec'],
+                        'test_mode': test_mode,
+                    }
+                    for item in sequence_result.get("commands", [])
+                ]
+
+                device_command = device_commands[0] if device_commands else None
             else:
                 logger.info("No Lovense command detected in Nomi response.")
 
@@ -912,8 +931,6 @@ class FastAPIApp:
         
         # Assign the web_app to the instance variable
         self.web_app = web_app
-
-
 
 
 
