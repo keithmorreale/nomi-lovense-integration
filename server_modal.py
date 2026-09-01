@@ -538,6 +538,7 @@ class FastAPIApp:
                 nomis = nomis_data.get('nomis', [])
                 # Store Nomis in the session
                 user_data['nomis'] = {nomi['uuid']: nomi for nomi in nomis}
+                request.session['user_data'] = user_data
                 return {"authenticated": True}
             else:
                 return {"authenticated": False}
