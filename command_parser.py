@@ -32,23 +32,19 @@ def _normalize_strength(value):
 
 def _normalize_duration(value):
     """
-    Return a safe command duration.
+    Normalize a command duration without enforcing safety limits.
 
-    Defaults to DEFAULT_DURATION.
-    Values are limited to 1-60 seconds.
+    Missing or non-numeric durations use DEFAULT_DURATION.
+    Explicit numeric durations are preserved so the sequence validator
+    can enforce the authoritative 2-60 second safety limits.
     """
     if value is None:
         return DEFAULT_DURATION
 
     try:
-        duration = int(value)
+        return int(value)
     except (TypeError, ValueError):
         return DEFAULT_DURATION
-
-    if 1 <= duration <= MAX_DURATION:
-        return duration
-
-    return DEFAULT_DURATION
 
 
 def _parse_device_payload(payload):

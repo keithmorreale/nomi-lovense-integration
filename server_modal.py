@@ -654,6 +654,39 @@ class FastAPIApp:
             }
             return templates.TemplateResponse(request=request, name="chat.html", context=context)
 
+        @web_app.post("/clear-chat")
+        async def clear_chat(request: Request):
+            form = await request.form()
+            nomi_id = form.get("nomi_id")
+
+            user_data = request.session.get("user_data")
+            if not user_data:
+                return RedirectResponse(url="/", status_code=303)
+
+            nomis = user_data.get("nomis", {})
+            if not nomi_id or nomi_id not in nomis:
+                return HTMLResponse(
+                    content="Invalid Nomi ID.",
+                    status_code=400
+                )
+
+            chat_threads = user_data.get("chat_threads", {})
+            chat_threads[nomi_id] = []
+
+            user_data["chat_threads"] = chat_threads
+            user_data["chat_submission_id"] = None
+            user_data.pop("last_device_result", None)
+            request.session["user_data"] = user_data
+
+            logger.info(
+                f"Local chat history cleared for nomi_id={nomi_id}"
+            )
+
+            return RedirectResponse(
+                url=f"/chat?nomi_id={nomi_id}",
+                status_code=303
+            )
+
         @web_app.post("/send-chat-message", response_class=HTMLResponse)
         async def send_chat_message(request: Request, app_instance=Depends(get_app_instance)):
             form = await request.form()
